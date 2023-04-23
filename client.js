@@ -5,8 +5,24 @@ importClass(
     java.io.OutputStream,
 );
 
-var socket = new java.net.Socket("192.168.0.8", 8080);
-socket.setSoTimeout(3000);
+var socket = null;
+
+const thread = new java.lang.Thread(
+    new java.lang.Runnable({
+            run() {
+                socket = new java.net.Socket("192.168.0.8", 8080);
+                socket.setSoTimeout(3000);
+                msg = JSON.stringify({
+                    "t": 0
+                })
+                output = socket.getOutputStream();
+                output.write((new java.lang.String(msg)).getBytes());
+                output.flush();
+                socketReciver();
+            }
+        }
+    )
+)
 
 function socketReciver() {
     try {
@@ -20,30 +36,29 @@ function socketReciver() {
             try {
                 if(new_message) {
                     input.read(line);
-                    let decoded = UTF8stringFromJavaByteArray(line,128);
+                    let decoded = String.fromCharCode.apply(null, line);
                     let header_size = (decoded.split('\n')[0] + "\n").length;
                     msg_size = parseInt(decoded.split('\n')[0].slice(1,-1)) - 128 + header_size;
                     msg_size_2 = msg_size + 128;
                     new_message = false;
-                    recv_data = Array.from(line).slice(header_size);
+                    recv_data = decoded.slice(header_size);
                 }
                 else if(msg_size > 128) {
                     input.read(line);
                     msg_size -= 128;
-                    recv_data = recv_data.concat(Array.from(line));
+                    recv_data = recv_data.concat(String.fromCharCode.apply(null, line));
                 }
                 else {
                     if (msg_size > 0) {
                         let line = new java.nio.ByteBuffer.allocate(msg_size).array();
                         input.read(line);
-                        recv_data = recv_data.concat(Array.from(line));
+                        recv_data = recv_data.concat(String.fromCharCode.apply(null, line));
                     }
                     new_message = true;
                     msg_size = 0;
 
-                    let res = UTF8stringFromJavaByteArray(recv_data, msg_size_2);
-                    Log.d(res);
-                    let data = JSON.parse(res);
+                    Log.d(recv_data);
+                    let data = JSON.parse(recv_data);
                     input.close();
                     input = socket.getInputStream();
 
@@ -82,18 +97,9 @@ function kakaoSender(msg) {
 }
 
 function onStartCompile() {
-    new java.lang.Thread({
-        run: function() {
-            msg = JSON.stringify({
-                "t": 0
-            })
-            output = socket.getOutputStream();
-            output.write((new java.lang.String(msg)).getBytes());
-            output.flush();
-            socketReciver();
-        }
-    }).start();
+	return thread.interrupt();
 }
+thread.start();
 
 function responseFix(room, msg, sender, isGroupChat, replier, imageDB, packageName) {
     socketSender(JSON.stringify({
@@ -102,35 +108,6 @@ function responseFix(room, msg, sender, isGroupChat, replier, imageDB, packageNa
         "s": sender,
         "G": isGroupChat
     }));
-}
-
-function UTF8stringFromJavaByteArray(line, lcnt)
-{
-    let data = []
-    for(i=0;i<lcnt;i++) data[i] = line[i];
-    const extraByteMap = [ 1, 1, 1, 1, 2, 2, 3, 0 ];
-    var count = data.length;
-    var str = "";
-    for (var index = 0;index < count;)
-    {
-        var ch = data[index++];
-        if (ch & 0x80)
-        {
-            var extra = extraByteMap[(ch >> 3) & 0x07];
-            if (!(ch & 0x40) || !extra || ((index + extra) > count))
-                return null;
-            ch = ch & (0x3F >> extra);
-            for (;extra > 0;extra -= 1)
-            {
-                var chx = data[index++];
-                if ((chx & 0xC0) != 0x80)
-                    return null;
-                ch = (ch << 6) | (chx & 0x3F);
-            }
-        }
-        str += String.fromCharCode(ch);
-    }
-    return str;
 }
 
 // notification fix by DarkTornado
