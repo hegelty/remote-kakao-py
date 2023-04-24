@@ -3,7 +3,7 @@ from socket import *
 from _thread import *
 
 server = socket(AF_INET, SOCK_STREAM)
-server.connect(('localhost', 8080))
+server.connect(('localhost', 8081))
 
 msg = str(json.dumps({
     "t": 0

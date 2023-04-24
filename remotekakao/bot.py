@@ -39,6 +39,7 @@ class Bot:
 
         print(f"{self.__host}:{self.__port} 소켓 실행")
         self.server_socket = socket(AF_INET, SOCK_STREAM)
+        self.server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.server_socket.bind((self.__host, self.__port))
         self.server_socket.listen(1)
 
@@ -51,6 +52,9 @@ class Bot:
             try:
                 if new_message:
                     data = self.client_socket.recv(128)
+                    if not data.decode():
+                        continue
+                    print("----------\n",data.decode())
                     header_len = len((data.decode().split("\n")[0] + "\n").encode())
                     msg_size = int(data.decode().split("\n")[0][1:-1]) - 128 + header_len
                     recv_data = data
@@ -67,8 +71,11 @@ class Bot:
 
                     self.router('\n'.join(recv_data.decode().split('\n')[1:]).strip())
             except Exception as e:
+                print(e)
                 print("reconnecting...")
+                self.server_socket.close()
                 self.server_socket = socket(AF_INET, SOCK_STREAM)
+                self.server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
                 self.server_socket.bind((self.__host, self.__port))
                 self.server_socket.listen(1)
 

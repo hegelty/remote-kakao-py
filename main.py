@@ -19,4 +19,4 @@ def on_msg(room, msg, sender, is_group_chat, *args):
 
 
 if __name__ == "__main__":
-    bot.run(host="0.0.0.0", port=8080)
+    bot.run(host="0.0.0.0", port=8081)
